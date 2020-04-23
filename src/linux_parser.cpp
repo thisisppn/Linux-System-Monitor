@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "linux_parser.h"
 
@@ -37,11 +38,12 @@ string LinuxParser::OperatingSystem() {
 string LinuxParser::Kernel() {
   string os, kernel;
   string line;
+  string version;
   std::ifstream stream(kProcDirectory + kVersionFilename);
   if (stream.is_open()) {
     std::getline(stream, line);
     std::istringstream linestream(line);
-    linestream >> os >> kernel;
+    linestream >> os >> version >> kernel;
   }
   return kernel;
 }
@@ -67,7 +69,49 @@ vector<int> LinuxParser::Pids() {
 }
 
 // TODO: Read and return the system memory utilization
-float LinuxParser::MemoryUtilization() { return 0.0; }
+float LinuxParser::MemoryUtilization() { 
+  /**
+  The file /proc/meminfo is of the following format, and I think we can calculate the memory Utilization 
+  using the formulae (MemTotal - MemFree) / MemTotal
+  
+  MemTotal:       16425388 kB
+  MemFree:        12342008 kB
+  MemAvailable:   15365336 kB
+  Buffers:          658992 kB
+  Cached:          2265892 kB
+  SwapCached:            0 kB
+  Active:          1751788 kB
+  Inactive:        1618480 kB
+  Active(anon):     444280 kB
+  Inactive(anon):    10676 kB
+  Active(file):    1307508 kB
+  Inactive(file):  1607804 kB
+  **/
+  std::ifstream stream(kProcDirectory + kMeminfoFilename);
+  std::string line;
+  int MemTotal;
+  int MemFree;
+  
+  std::string name;
+  int memory;
+  std::string kb;
+  
+  if (stream.is_open()) {
+    while (std::getline(stream, line)) {
+      std::istringstream linestream(line);
+      linestream >> name >> memory >> kb;
+      if (name == "MemTotal:"){
+          MemTotal = memory;
+      } else if (name == "MemFree:") {
+          MemFree = memory;
+//           std::cout << float(MemTotal - MemFree) / float(MemTotal) << "\n";
+          return float(MemTotal - MemFree) / float(MemTotal);
+      }
+	};    
+  };
+  
+  return 0.0; 
+} 
 
 // TODO: Read and return the system uptime
 long LinuxParser::UpTime() { return 0; }
