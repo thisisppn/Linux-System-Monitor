@@ -114,7 +114,35 @@ float LinuxParser::MemoryUtilization() {
 } 
 
 // TODO: Read and return the system uptime
-long LinuxParser::UpTime() { return 0; }
+long LinuxParser::UpTime() { 
+/**
+  The file /proc/uptime has the following contents
+  
+  1099.11 842.47
+  
+  This file contains two numbers (values in seconds): the uptime
+  of the system (including time spent in suspend) and the amount
+  of time spent in the idle process.
+  
+  Therefore we need to extract the first number. 
+  */
+  
+  std::ifstream stream(kProcDirectory + kUptimeFilename);
+  if (stream.is_open()) {
+    std::string line;
+    
+    long total_uptime;
+    long idle_time;
+    
+  	std::getline(stream, line);
+    std::istringstream linestream(line);
+    linestream >> total_uptime >> idle_time;
+//     std::cout << "Uptime :" << total_uptime << "\n";
+    return total_uptime;
+  } else {
+  	return 0;
+  }
+}
 
 // TODO: Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() { return 0; }
