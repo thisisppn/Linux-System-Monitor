@@ -127,20 +127,21 @@ long LinuxParser::UpTime() {
   Therefore we need to extract the first number. 
   */
   
+  long total_uptime = 0;
   std::ifstream stream(kProcDirectory + kUptimeFilename);
   if (stream.is_open()) {
     std::string line;
     
-    long total_uptime;
+    
     long idle_time;
     
   	std::getline(stream, line);
     std::istringstream linestream(line);
     linestream >> total_uptime >> idle_time;
-//     std::cout << "Uptime :" << total_uptime << "\n";
+    
     return total_uptime;
   } else {
-  	return 0;
+  	return total_uptime;
   }
 }
 
