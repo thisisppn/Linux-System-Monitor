@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <iterator>
 
 #include "linux_parser.h"
 
@@ -146,34 +147,204 @@ long LinuxParser::UpTime() {
 }
 
 // TODO: Read and return the number of jiffies for the system
-long LinuxParser::Jiffies() { return 0; }
+long LinuxParser::Jiffies() { 
+  
+  long jiffies = 0;
+  
+  std::ifstream filestream(kProcDirectory + kStatFilename);
+  if (filestream.is_open()) {
+    std::string line;
+    std::getline(filestream, line);
+    std::stringstream linestream(line);
+    
+    // Referring to https://rosettacode.org/wiki/Linux_CPU_utilization
+    linestream.ignore(5, ' '); // Skip the 'cpu' prefix.
+//     std::vector<size_t> times;
+    for (long time; linestream >> time; jiffies += time);
+    
+//     std::cout << "Total jiffies: " << jiffies;
+    
+    return jiffies;
+  }
+  
+  
+  return 0; 
+
+
+}
 
 // TODO: Read and return the number of active jiffies for a PID
 // REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::ActiveJiffies(int pid[[maybe_unused]]) { return 0; }
+long LinuxParser::ActiveJiffies(int pid) { 
+  /**
+  The content of the /prod/[pid]/stat file looks like this. 
+  
+  40 (node) S 39 1 1 0 -1 4194560 13339 0 10 0 97 14 0 0 20 0 11 0 3009 1271238656 12594 18446744073709551615 4194304 33169308 140727177963744 0 0 0 0 4096 16896 0 0 0 17 3 0 0 56 0 0 35266560 35374480 40251392 140727177968961 140727177968982 140727177968982 140727177969636 0
+  
+  As per the documentation, these have information like PID, The filename of the executable, in parentheses, State, ppid ... etc
+  
+  However, for the sake of this function, we need the fields utime(14), stime(15), cutime(16), cstime(17) and add them to get the active jiffies for the PID. 
+  */
+  
+  string kPidDirectory = '/' + std::to_string(pid) + '/';
+  
+  std::ifstream filestream(kProcDirectory + kPidDirectory + kStatFilename);
+  
+  if (filestream.is_open()) {
+    std::string line;
+    std::getline(filestream, line);
+    
+    std::istringstream iss(line);
+    // Referred to the following link to split a string on spaces https://www.fluentcpp.com/2017/04/21/how-to-split-a-string-in-c/
+    std::vector<std::string> results(std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>()); // Split the line on spaces
+    
+    //Note: without using .c_str() we get some typecasting error. So we have to explicitely convert them to strings before converting to long
+    return long(results[15].c_str()) + long(results[16].c_str()) + long(results[17].c_str()) + long(results[18].c_str());
+    
+  }
+  return 0; 
+
+}
 
 // TODO: Read and return the number of active jiffies for the system
-long LinuxParser::ActiveJiffies() { return 0; }
+long LinuxParser::ActiveJiffies() { 
+	return Jiffies() - IdleJiffies();
+};
 
 // TODO: Read and return the number of idle jiffies for the system
-long LinuxParser::IdleJiffies() { return 0; }
+long LinuxParser::IdleJiffies() { 
+	
+  long idle_jiffies = 0;
+  std::vector<long> times;
+  std::ifstream filestream(kProcDirectory + kStatFilename);
+  if (filestream.is_open()) {
+    std::string line;
+    std::getline(filestream, line);
+    std::stringstream linestream(line);
+    
+    // Referring to https://rosettacode.org/wiki/Linux_CPU_utilization
+    linestream.ignore(5, ' '); // Skip the 'cpu' prefix.
+    for (long time; linestream >> time; times.push_back(time));
+    
+    idle_jiffies = times[3]; // As per the man page, the 4th time represents the idle jiffies. http://man7.org/linux/man-pages/man5/proc.5.html
+  }
+  
+  return idle_jiffies;
+}
 
 // TODO: Read and return CPU utilization
 vector<string> LinuxParser::CpuUtilization() { return {}; }
 
 // TODO: Read and return the total number of processes
-int LinuxParser::TotalProcesses() { return 0; }
+int LinuxParser::TotalProcesses() { 
+	
+  std::string line;
+  std::string key;
+  
+  int processes = 0;
+  
+  std::ifstream filestream(kProcDirectory + kStatFilename);
+  
+  if (filestream.is_open()) {
+    while (std::getline(filestream, line)) {
+      
+      std::istringstream linestream(line);
+      linestream >> key;
+      if (key == "processes") {
+          linestream >> processes;
+          break;
+      }
+    }
+  }
+   return processes;
+}
 
 // TODO: Read and return the number of running processes
-int LinuxParser::RunningProcesses() { return 0; }
+int LinuxParser::RunningProcesses() { 
+
+  std::string line;
+  std::string key;
+  
+  int running_processes = 0;
+  
+  std::ifstream filestream(kProcDirectory + kStatFilename);
+  
+  if (filestream.is_open()) {
+    while (std::getline(filestream, line)) {
+      
+      std::istringstream linestream(line);
+      linestream >> key;
+      if (key == "procs_running") {
+          linestream >> running_processes;
+          break;
+      }
+    }
+  }
+   return running_processes;
+}
 
 // TODO: Read and return the command associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Command(int pid[[maybe_unused]]) { return string(); }
+string LinuxParser::Command(int pid) {
+  /**
+  This information is found in the /proc/[pid]/cmdline file. 
+  */
+  string cmd;
+  string kPidDirectory = '/' + std::to_string(pid);
+  std::ifstream filestream(kProcDirectory + kPidDirectory + kCmdlineFilename);
+  
+  if (filestream.is_open()) {
+    std::getline(filestream, cmd);
+  }
+  
+  return cmd;
+
+}
 
 // TODO: Read and return the memory used by a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Ram(int pid[[maybe_unused]]) { return string(); }
+string LinuxParser::Ram(int pid) { 
+/**
+this information can be found in the /proc/[pid]/status file. And as per the man docs, we are conserned with the "VmSize" key
+
+NSpgid: 17248
+NSsid:  17200
+VmPeak:     131168 kB
+VmSize:     131168 kB
+VmLck:           0 kB
+VmPin:           0 kB
+VmHWM:       13484 kB
+VmRSS:       13484 kB
+RssAnon:     10264 kB
+RssFile:      3220 kB
+
+*/
+
+	
+  
+  long ram = 0;
+  
+  string kPidDirectory = '/' + std::to_string(pid) + '/';
+  std::ifstream filestream(kProcDirectory + kPidDirectory + kStatusFilename);
+  if (filestream.is_open()) {
+    string line;
+  
+    while (std::getline(filestream, line)) {
+      std::istringstream linestream(line);
+      string key;
+      
+      linestream >> key;
+      if (key == "VmSize:") {
+        linestream >> ram;
+        break;
+      }
+    }
+  }
+  
+  // Convert the RAM from KB to MB, since we are displaying in MB
+  // Also, since the return type is string, we need to convert the long int to string, otherwise it gives error. 
+  return std::to_string(ram/1000);
+}
 
 // TODO: Read and return the user ID associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
