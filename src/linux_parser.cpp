@@ -116,7 +116,7 @@ float LinuxParser::MemoryUtilization() {
 
 // TODO: Read and return the system uptime
 long LinuxParser::UpTime() { 
-/**
+  /**
   The file /proc/uptime has the following contents
   
   1099.11 842.47
@@ -348,12 +348,131 @@ RssFile:      3220 kB
 
 // TODO: Read and return the user ID associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::Uid(int pid[[maybe_unused]]) { return string(); }
+string LinuxParser::Uid(int pid) { 
+  /**
+  Similar to the RAM function, this information is also found in the prod/[pid]/status file
+  
+  The only difference is that, here, we need the key "Uid". Which is of the following form. We just need the first number (real uid)
+  
+  Uid:    1000    1000    1000    1000
+  */
+  
+  string uid;
+  
+  string kPidDirectory = '/' + std::to_string(pid) + '/';
+  std::ifstream filestream(kProcDirectory + kPidDirectory + kStatusFilename);
+  if (filestream.is_open()) {
+    string line;
+  
+    while (std::getline(filestream, line)) {
+      std::istringstream linestream(line);
+      string key;
+      
+      linestream >> key;
+      if (key == "Uid:") {
+        linestream >> uid;
+        break;
+      }
+    }
+  }
+  
+  
+  return uid; }
 
 // TODO: Read and return the user associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
-string LinuxParser::User(int pid[[maybe_unused]]) { return string(); }
+string LinuxParser::User(int pid) { 
+  /**
+  The Uid above needs to be mapped with the User name which is stored in the /etc/passwd file. 
+  The entried in that file are of the following format. Here we can see that, root has Uid 0, daemon has Uid 1 bin's Uid is 2 and so on.
+  
+  root:x:0:0:root:/root:/bin/bash
+  daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+  bin:x:2:2:bin:/bin:/usr/sbin/nologin
+  sys:x:3:3:sys:/dev:/usr/sbin/nologin
+  sync:x:4:65534:sync:/bin:/bin/sync
+  games:x:5:60:games:/usr/games:/usr/sbin/nologin
+  
+  */
+  
+  std::ifstream filestream(kPasswordPath);
+  if (filestream.is_open()) {
+    string line;
+    
+    while (std::getline(filestream, line)) {
+      
+      std::replace(line.begin(), line.end(), ':', ' ');
+      std::istringstream iss(line);
+
+//       std::vector<std::string> results(std::istream_iterator<std::string>{iss},
+//                                      std::istream_iterator<std::string>());
+		
+      // the following variables are taken with reference to the documentation https://www.ibm.com/support/knowledgecenter/ssw_aix_71/security/passwords_etc_passwd_file.html
+      
+      string user;
+      string enc_password;
+      string uid;
+      
+      iss >> user >> enc_password >> uid;
+      
+      if (uid == Uid(pid)){
+      	return user;
+      }
+    }
+  }
+  
+  return "";
+}
 
 // TODO: Read and return the uptime of a process
 // REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::UpTime(int pid[[maybe_unused]]) { return 0; }
+long LinuxParser::UpTime(int pid) { 
+  /**
+  This information is available in the /proc/[pid]/stat file with the key starttime (23 idx)
+  
+  */
+  long start_time;
+
+  string kPidDirectory = '/' + std::to_string(pid) + '/';
+  
+  std::ifstream filestream(kProcDirectory + kPidDirectory + kStatFilename);
+  
+  if (filestream.is_open()) {
+    std::string line;
+    std::getline(filestream, line);
+    
+    std::istringstream iss(line);
+    string placeholder;
+    
+    for (int idx = 1; idx <= 22; ++idx) {
+      if (idx == 22) {
+        iss >> start_time;
+      } else {
+        iss >> placeholder;
+      }
+    }
+  }
+  return start_time / sysconf(_SC_CLK_TCK);
+
+}
+
+
+// long LinuxParser::UpTime(int pid) {
+//   string line;
+//   string placeholder;
+//   long start_time = 0;
+//   string kPidDirectory = '/' + std::to_string(pid);
+//   std::ifstream filestream(kProcDirectory + kPidDirectory + kStatFilename);
+//   if (filestream.is_open()) {
+//     std::getline(filestream, line);
+//     std::istringstream linestream(line);
+//     for (int token_id = 1; token_id <= 22; ++token_id) {
+//       if (token_id == 22) {
+//         linestream >> start_time;
+//       } else {
+//         linestream >> placeholder;
+//       }
+//     }
+//   }
+//   return start_time / sysconf(_SC_CLK_TCK);
+// }

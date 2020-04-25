@@ -17,9 +17,11 @@ class Process {
   bool operator<(Process const& a) const;  // TODO: See src/process.cpp
 
   void setPid(int id);
+  void setCpuUtilization(float utilization);
   // TODO: Declare any necessary private members
  private:
-  int pid_ = 0;
+  int pid_;
+  float cpu_utilization_;
 };
 
 #endif
