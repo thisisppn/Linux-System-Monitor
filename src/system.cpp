@@ -31,9 +31,9 @@ vector<Process>& System::Processes() {
     
     // WRF https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
     
-    // cpu_uptime - process_start_time
+    // cpu_uptime - start_time (process)
     long seconds = LinuxParser::UpTime() - LinuxParser::UpTime(pid);
-    float cpu_utlization = ((float)LinuxParser::ActiveJiffies(pid) / sysconf(_SC_CLK_TCK)) / seconds;
+    float cpu_utlization = ((float)LinuxParser::ActiveJiffies(pid) / sysconf(_SC_CLK_TCK)) / (float)seconds;
     
     process.setCpuUtilization(cpu_utlization);
     

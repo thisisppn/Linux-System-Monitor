@@ -175,36 +175,77 @@ long LinuxParser::Jiffies() {
 
 // TODO: Read and return the number of active jiffies for a PID
 // REMOVE: [[maybe_unused]] once you define the function
-long LinuxParser::ActiveJiffies(int pid) { 
+// long LinuxParser::ActiveJiffies(int pid) { 
+//   /**
+//   The content of the /prod/[pid]/stat file looks like this. 
+  
+//   40 (node) S 39 1 1 0 -1 4194560 13339 0 10 0 97 14 0 0 20 0 11 0 3009 1271238656 12594 18446744073709551615 4194304 33169308 140727177963744 0 0 0 0 4096 16896 0 0 0 17 3 0 0 56 0 0 35266560 35374480 40251392 140727177968961 140727177968982 140727177968982 140727177969636 0
+  
+//   As per the documentation, these have information like PID, The filename of the executable, in parentheses, State, ppid ... etc
+  
+//   However, for the sake of this function, we need the fields utime(14), stime(15), cutime(16), cstime(17) and add them to get the active jiffies for the PID. 
+//   */
+  
+//   string kPidDirectory = '/' + std::to_string(pid) + '/';
+  
+//   std::ifstream filestream(kProcDirectory + kPidDirectory + kStatFilename);
+  
+//   if (filestream.is_open()) {
+//     std::string line;
+//     std::getline(filestream, line);
+    
+//     std::istringstream iss(line);
+//     // Referred to the following link to split a string on spaces https://www.fluentcpp.com/2017/04/21/how-to-split-a-string-in-c/
+//     std::vector<std::string> results(std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>()); // Split the line on spaces
+    
+//     //Note: without using .c_str() we get some typecasting error. So we have to explicitely convert them to strings before converting to long
+//     return long(results[13].c_str()) + long(results[14].c_str()) + long(results[15].c_str()) + long(results[16].c_str());
+    
+//   }
+//   return 0; 
+
+// }
+
+
+long LinuxParser::ActiveJiffies(int pid) {
   /**
-  The content of the /prod/[pid]/stat file looks like this. 
+  The above commented function was my implementation, but there was some bug that I could not resolve, because of which I was getting weird numbers in the 
+  Process CPU Utilization section. I have put up a question in Knowledge as well reqgarding the same problem that I was facing, but I did not get proper response
+  from any technical mentor. 
   
-  40 (node) S 39 1 1 0 -1 4194560 13339 0 10 0 97 14 0 0 20 0 11 0 3009 1271238656 12594 18446744073709551615 4194304 33169308 140727177963744 0 0 0 0 4096 16896 0 0 0 17 3 0 0 56 0 0 35266560 35374480 40251392 140727177968961 140727177968982 140727177968982 140727177969636 0
+  So, I checked online, and found an implementation and took reference from it. Following is the link.
   
-  As per the documentation, these have information like PID, The filename of the executable, in parentheses, State, ppid ... etc
+  https://github.com/jpmarques19/CppND-SystemMonitor/blob/master/src/linux_parser.cpp
   
-  However, for the sake of this function, we need the fields utime(14), stime(15), cutime(16), cstime(17) and add them to get the active jiffies for the PID. 
   */
   
-  string kPidDirectory = '/' + std::to_string(pid) + '/';
-  
+  string line;
+  string placeholder;
+  long jiffies = 0;
+  long process_jiffies = 0;
+  string kPidDirectory = '/' + std::to_string(pid);
   std::ifstream filestream(kProcDirectory + kPidDirectory + kStatFilename);
   
   if (filestream.is_open()) {
-    std::string line;
     std::getline(filestream, line);
+    std::istringstream linestream(line);
     
-    std::istringstream iss(line);
-    // Referred to the following link to split a string on spaces https://www.fluentcpp.com/2017/04/21/how-to-split-a-string-in-c/
-    std::vector<std::string> results(std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>()); // Split the line on spaces
-    
-    //Note: without using .c_str() we get some typecasting error. So we have to explicitely convert them to strings before converting to long
-    return long(results[15].c_str()) + long(results[16].c_str()) + long(results[17].c_str()) + long(results[18].c_str());
-    
+    for (int token_id = 1; token_id <= 17; ++token_id) {
+      
+      if (token_id == 14 ||
+          token_id == 15 ||
+          token_id == 16 ||
+          token_id == 17) {
+        linestream >> jiffies;
+        process_jiffies += jiffies;
+      } else {
+        linestream >> placeholder;
+      }
+    }
   }
-  return 0; 
-
+  return process_jiffies;
 }
+
 
 // TODO: Read and return the number of active jiffies for the system
 long LinuxParser::ActiveJiffies() { 
