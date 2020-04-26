@@ -22,7 +22,7 @@ Processor& System::Cpu() { return cpu_; }
 vector<Process>& System::Processes() { 
   vector<Process> processes;
   vector<int> pids = LinuxParser::Pids();
-  
+  processes_ = {};  // reset the process vector
   for (int pid: pids){
     // Initialize all the as process objects and return
     Process process;
@@ -40,7 +40,8 @@ vector<Process>& System::Processes() {
     processes_.push_back(process);
   
   }
-  return processes_; 
+  std::sort(processes_.begin(),processes_.end());
+  return processes_;
 }
 
 // Return the system's kernel identifier (string)
